@@ -1,5 +1,5 @@
 // =========================================================
-// ATACADÃO DAS FERRAGENS — SCRIPT.JS
+// ATACADÃO DAS FERRAGENS — SCRIPT.JS (CORRIGIDO)
 // =========================================================
 
 // ================================
@@ -46,6 +46,20 @@ const lojas = [
 ];
 
 // ================================
+// UTILITÁRIO — Escapar HTML (fix XSS / quebra de template)
+// ================================
+
+function escapeHtml(str) {
+  if (str === null || str === undefined) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+// ================================
 // HERO SLIDESHOW
 // ================================
 
@@ -78,7 +92,7 @@ function iniciarSlideshow() {
 
   document.querySelectorAll(".hero-dot").forEach((dot) => {
     dot.addEventListener("click", () => {
-      const idx = parseInt(dot.dataset.index);
+      const idx = parseInt(dot.dataset.index, 10);
       irParaSlide(idx);
     });
   });
@@ -89,6 +103,8 @@ function iniciarSlideshow() {
   if (storeNameBottom) storeNameBottom.textContent = lojas[0].nome;
   storeNameEl.classList.add("hero-name-change");
 
+  // FIX: evitar múltiplos timers acumulados se iniciarSlideshow for chamada mais de uma vez
+  if (slideTimer) clearInterval(slideTimer);
   slideTimer = setInterval(proximoSlide, 8000);
 }
 
@@ -103,7 +119,7 @@ function irParaSlide(idx) {
 
   track.style.transform = `translateX(-${idx * 100}%)`;
   dots.forEach((d) => d.classList.remove("active"));
-  dots[idx].classList.add("active");
+  if (dots[idx]) dots[idx].classList.add("active");
   slideIndex = idx;
   const storeNameBottom = document.getElementById("heroStoreNameBottom");
   storeNameEl.textContent = lojas[idx].nome;
@@ -151,6 +167,7 @@ document.addEventListener("click", (e) => {
     renderizarProdutos(filtrados, cat);
     document.getElementById("produtos").scrollIntoView({ behavior: "smooth" });
     fecharSubnavMobile();
+    return; // FIX: evita cair nos outros blocos abaixo por engano
   }
 
   if (outrasLink) {
@@ -161,6 +178,7 @@ document.addEventListener("click", (e) => {
     renderizarProdutos(produtos);
     document.getElementById("produtos").scrollIntoView({ behavior: "smooth" });
     fecharSubnavMobile();
+    return;
   }
 
   if (homeLink) {
@@ -375,6 +393,7 @@ function formatarPreco(valor) {
 
 function mostrarToast(msg, tipo = "ok") {
   const toast = document.getElementById("toast");
+  if (!toast) return;
   toast.textContent = msg;
   toast.className = "toast show " + tipo;
   clearTimeout(toast._timer);
@@ -396,7 +415,7 @@ function renderizarProdutos(lista, pesquisa = "") {
 
   if (titulo) {
     titulo.innerHTML = pesquisa
-      ? `Resultados para <span>"${pesquisa}"</span>`
+      ? `Resultados para <span>"${escapeHtml(pesquisa)}"</span>`
       : `Produtos em <span>Destaque</span>`;
   }
   if (subtitulo) {
@@ -406,14 +425,15 @@ function renderizarProdutos(lista, pesquisa = "") {
   }
 
   if (lista.length === 0) {
+    const pesquisaSafe = escapeHtml(pesquisa);
     grid.innerHTML = `
             <div class="sem-resultado">
                 <div class="sem-resultado-icon">🔍</div>
                 <h3>Nenhum produto encontrado</h3>
-                <p>Não encontramos "<strong>${pesquisa}</strong>" no nosso catálogo.<br>
+                <p>Não encontramos "<strong>${pesquisaSafe}</strong>" no nosso catálogo.<br>
                 Tente outro termo ou entre em contato pelo WhatsApp!</p>
                 <a href="https://wa.me/5521978554136?text=Olá!%20Procurei%20por%20${encodeURIComponent(pesquisa)}%20no%20site%20e%20não%20encontrei.%20Vocês%20têm?"
-                   target="_blank" class="sem-resultado-btn">
+                   target="_blank" rel="noopener" class="sem-resultado-btn">
                     💬 Perguntar no WhatsApp
                 </a>
             </div>`;
@@ -421,38 +441,38 @@ function renderizarProdutos(lista, pesquisa = "") {
   }
 
   grid.innerHTML = lista
-    .map(
-      (produto) => `
-        <div class="produto-card"${produto.tipo ? ` data-tipo="${produto.tipo}"` : ""}>
+    .map((produto) => {
+      const nomeSafe = escapeHtml(produto.nome);
+      const tipoSafe = produto.tipo ? escapeHtml(produto.tipo) : "";
+      return `
+        <div class="produto-card"${produto.tipo ? ` data-tipo="${tipoSafe}"` : ""}>
             <div class="produto-top">
                 <div class="produto-img">
-                    ${
-                      produto.img
-                        ? `<div class="produto-img-wrap"><img src="${produto.img}" alt="${produto.nome}"></div>`
-                        : `<span class="produto-emoji">${produto.emoji}</span>`
-                    }
-                    ${produto.tipo ? `<div class="produto-hover-tipo">${produto.tipo}</div>` : ""}
+                    ${produto.img
+          ? `<div class="produto-img-wrap"><img src="${produto.img}" alt="${nomeSafe}" loading="lazy"></div>`
+          : `<span class="produto-emoji">${produto.emoji}</span>`
+        }
+                    ${produto.tipo ? `<div class="produto-hover-tipo">${tipoSafe}</div>` : ""}
                 </div>
-                ${
-                  produto.promo
-                    ? `<span class="produto-badge promo">🔥 Promoção</span>`
-                    : `<span class="produto-badge estoque">✓ Em estoque</span>`
-                }
+                ${produto.promo
+          ? `<span class="produto-badge promo">🔥 Promoção</span>`
+          : `<span class="produto-badge estoque">✓ Em estoque</span>`
+        }
             </div>
             <div class="produto-body">
-                <span class="produto-cat">${produto.cat}</span>
-                <h3 class="produto-nome">${produto.nome}</h3>
-                <button class="produto-btn" data-id="${produto.id}">
+                <span class="produto-cat">${escapeHtml(produto.cat)}</span>
+                <h3 class="produto-nome">${nomeSafe}</h3>
+                <button class="produto-btn" data-id="${produto.id}" type="button">
                     Fazer orçamento
                 </button>
             </div>
         </div>
-    `,
-    )
+    `;
+    })
     .join("");
 
   ativarBotoesProduto();
-  observarProdutos(); // FIX: animar cards após renderizar
+  observarProdutos();
 }
 
 // ================================
@@ -462,7 +482,7 @@ function renderizarProdutos(lista, pesquisa = "") {
 function ativarBotoesProduto() {
   document.querySelectorAll(".produto-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
-      const id = parseInt(btn.dataset.id);
+      const id = parseInt(btn.dataset.id, 10);
       adicionarAoCarrinho(id);
 
       btn.classList.add("adicionado");
@@ -555,9 +575,12 @@ function limparCarrinho() {
 
 function atualizarContadorCarrinho() {
   const total = carrinho.reduce((acc, i) => acc + i.qty, 0);
-  document.getElementById("carrinhoCount").textContent = total;
-  document.getElementById("carrinhoCountPanel").textContent =
-    `${total} ${total === 1 ? "item" : "itens"}`;
+  const countEl = document.getElementById("carrinhoCount");
+  const countPanelEl = document.getElementById("carrinhoCountPanel");
+  if (countEl) countEl.textContent = total;
+  if (countPanelEl) {
+    countPanelEl.textContent = `${total} ${total === 1 ? "item" : "itens"}`;
+  }
 }
 
 // ================================
@@ -567,7 +590,6 @@ function atualizarContadorCarrinho() {
 function renderizarCarrinho() {
   const container = document.getElementById("carrinhoItems");
   const footer = document.getElementById("carrinhoFooter");
-  const totalEl = document.getElementById("carrinhoTotal");
 
   if (!container) return;
 
@@ -582,27 +604,58 @@ function renderizarCarrinho() {
   }
 
   container.innerHTML = carrinho
-    .map(
-      (item) => `
+    .map((item) => {
+      const nomeSafe = escapeHtml(item.nome);
+      const catSafe = escapeHtml(item.cat);
+      return `
         <div class="orc-item">
             <div class="orc-item-emoji">${item.emoji}</div>
             <div class="orc-item-info">
-                <div class="orc-item-nome">${item.nome}</div>
-                <div class="orc-item-cat">${item.cat}</div>
+                <div class="orc-item-nome">${nomeSafe}</div>
+                <div class="orc-item-cat">${catSafe}</div>
             </div>
             <div class="orc-item-qty">
-                <button class="orc-qty-btn" onclick="alterarQty(${item.id}, -1)" aria-label="Diminuir">−</button>
+                <button class="orc-qty-btn" onclick="alterarQty(${item.id}, -1)" aria-label="Diminuir" type="button">−</button>
                 <span>${item.qty}</span>
-                <button class="orc-qty-btn" onclick="alterarQty(${item.id}, 1)" aria-label="Aumentar">+</button>
+                <button class="orc-qty-btn" onclick="alterarQty(${item.id}, 1)" aria-label="Aumentar" type="button">+</button>
             </div>
-            <button class="orc-item-remove" onclick="removerDoCarrinho(${item.id})" title="Remover">✕</button>
+            <button class="orc-item-remove" onclick="removerDoCarrinho(${item.id})" title="Remover" type="button">✕</button>
         </div>
-    `,
-    )
+    `;
+    })
     .join("");
 
-  if (totalEl) totalEl.style.display = "none";
-  if (footer) footer.style.display = "block";
+  // FIX: renderiza os botões de finalizar por loja + botão de limpar,
+  // que antes existiam apenas no CSS mas nunca eram criados/ligados no JS.
+  if (footer) {
+    footer.style.display = "block";
+    footer.innerHTML = `
+      <div class="carrinho-obs">Escolha a loja para enviar seu orçamento pelo WhatsApp</div>
+      <div class="carrinho-wa-btns">
+        ${lojas
+        .map(
+          (loja) => `
+          <button class="carrinho-wa-btn" type="button" data-tel="${loja.telefone}" data-nome="${escapeHtml(loja.nome)}">
+            💬 ${escapeHtml(loja.nome)}
+          </button>
+        `,
+        )
+        .join("")}
+      </div>
+      <button class="carrinho-limpar" type="button" id="btnLimparCarrinho">🗑 Limpar orçamento</button>
+    `;
+
+    footer.querySelectorAll(".carrinho-wa-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        finalizarOrcamento(btn.dataset.tel, btn.dataset.nome);
+      });
+    });
+
+    const btnLimpar = footer.querySelector("#btnLimparCarrinho");
+    if (btnLimpar) {
+      btnLimpar.addEventListener("click", limparCarrinho);
+    }
+  }
 }
 
 // ================================
@@ -624,7 +677,7 @@ function finalizarOrcamento(telefone, nomeLoja) {
 
   msg += `%0AObrigado!`;
 
-  window.open(`https://wa.me/${telefone}?text=${msg}`, "_blank");
+  window.open(`https://wa.me/${telefone}?text=${msg}`, "_blank", "noopener");
 }
 
 // ================================
@@ -643,19 +696,22 @@ function fecharCarrinho() {
   document.body.style.overflow = "";
 }
 
-document.getElementById("btnCarrinho").addEventListener("click", abrirCarrinho);
-document
-  .getElementById("btnFecharCarrinho")
-  .addEventListener("click", fecharCarrinho);
-document
-  .getElementById("carrinhoOverlay")
-  .addEventListener("click", fecharCarrinho);
+// FIX: guarda de existência antes de addEventListener (evita TypeError se o
+// HTML ainda não tiver esses elementos, ex: durante testes de partes isoladas)
+const btnCarrinhoEl = document.getElementById("btnCarrinho");
+const btnFecharCarrinhoEl = document.getElementById("btnFecharCarrinho");
+const carrinhoOverlayEl = document.getElementById("carrinhoOverlay");
+
+if (btnCarrinhoEl) btnCarrinhoEl.addEventListener("click", abrirCarrinho);
+if (btnFecharCarrinhoEl) btnFecharCarrinhoEl.addEventListener("click", fecharCarrinho);
+if (carrinhoOverlayEl) carrinhoOverlayEl.addEventListener("click", fecharCarrinho);
 
 // Fechar com Escape
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
     fecharCarrinho();
-    document.getElementById("searchDropdown").classList.remove("open");
+    const dd = document.getElementById("searchDropdown");
+    if (dd) dd.classList.remove("open");
   }
 });
 
@@ -677,7 +733,7 @@ function renderizarDropdown(lista, pesquisa) {
     dropdown.innerHTML = `
             <div class="dd-empty">
                 <div class="dd-empty-icon">🔍</div>
-                <p>Nenhum produto encontrado para "<strong>${pesquisa}</strong>"</p>
+                <p>Nenhum produto encontrado para "<strong>${escapeHtml(pesquisa)}</strong>"</p>
             </div>`;
     dropdown.classList.add("open");
     return;
@@ -685,6 +741,7 @@ function renderizarDropdown(lista, pesquisa) {
 
   const isMobile = window.innerWidth < 768;
   const top8 = lista.slice(0, 8);
+  const pesquisaSafe = escapeHtml(pesquisa);
 
   if (isMobile) {
     const itens = top8
@@ -692,7 +749,7 @@ function renderizarDropdown(lista, pesquisa) {
         (produto) => `
           <div class="dd-item-mob" data-id="${produto.id}">
               <span class="dd-emoji-mob">${produto.emoji}</span>
-              <span class="dd-name-mob">${produto.nome}</span>
+              <span class="dd-name-mob">${escapeHtml(produto.nome)}</span>
           </div>
       `,
       )
@@ -700,21 +757,21 @@ function renderizarDropdown(lista, pesquisa) {
 
     const verMaisHtml =
       lista.length > 8
-        ? `<div class="dd-ver-mais-mob" data-pesquisa="${pesquisa}">Ver todos os ${lista.length} resultados ↓</div>`
+        ? `<div class="dd-ver-mais-mob" data-pesquisa="${pesquisaSafe}">Ver todos os ${lista.length} resultados ↓</div>`
         : "";
 
     dropdown.innerHTML = `
-          <div class="dd-header-mob">Resultados para "${pesquisa}"</div>
+          <div class="dd-header-mob">Resultados para "${pesquisaSafe}"</div>
           ${itens}
           ${verMaisHtml}
       `;
 
     dropdown.querySelectorAll(".dd-item-mob").forEach((item) => {
       item.addEventListener("click", () => {
-        const id = parseInt(item.dataset.id);
+        const id = parseInt(item.dataset.id, 10);
         const produto = produtos.find((p) => p.id === id);
         if (!produto) return;
-        searchInput.value = produto.nome;
+        if (searchInput) searchInput.value = produto.nome;
         renderizarProdutos([produto], produto.nome);
         dropdown.classList.remove("open");
         document
@@ -726,8 +783,7 @@ function renderizarDropdown(lista, pesquisa) {
     const verMaisEl = dropdown.querySelector(".dd-ver-mais-mob");
     if (verMaisEl) {
       verMaisEl.addEventListener("click", () => {
-        const term = verMaisEl.dataset.pesquisa;
-        renderizarProdutos(lista, term);
+        renderizarProdutos(lista, pesquisa);
         dropdown.classList.remove("open");
         document
           .getElementById("produtos")
@@ -741,10 +797,10 @@ function renderizarDropdown(lista, pesquisa) {
           <div class="dd-item" data-id="${produto.id}">
               <div class="dd-emoji">${produto.emoji}</div>
               <div class="dd-info">
-                  <div class="dd-name">${produto.nome}</div>
-                  <div class="dd-cat">${produto.cat}</div>
+                  <div class="dd-name">${escapeHtml(produto.nome)}</div>
+                  <div class="dd-cat">${escapeHtml(produto.cat)}</div>
               </div>
-              <button class="dd-add-btn" data-id="${produto.id}">+ Orçamento</button>
+              <button class="dd-add-btn" data-id="${produto.id}" type="button">+ Orçamento</button>
           </div>
       `,
       )
@@ -752,11 +808,11 @@ function renderizarDropdown(lista, pesquisa) {
 
     const verMaisHtml =
       lista.length > 8
-        ? `<div class="dd-ver-mais" data-pesquisa="${pesquisa}">Ver todos os ${lista.length} resultados ↓</div>`
+        ? `<div class="dd-ver-mais" data-pesquisa="${pesquisaSafe}">Ver todos os ${lista.length} resultados ↓</div>`
         : "";
 
     dropdown.innerHTML = `
-          <div class="dd-header">🔍 ${lista.length} resultado(s) para "${pesquisa}"</div>
+          <div class="dd-header">🔍 ${lista.length} resultado(s) para "${pesquisaSafe}"</div>
           ${itens}
           ${verMaisHtml}
       `;
@@ -764,10 +820,10 @@ function renderizarDropdown(lista, pesquisa) {
     dropdown.querySelectorAll(".dd-item").forEach((item) => {
       item.addEventListener("click", (e) => {
         if (e.target.classList.contains("dd-add-btn")) return;
-        const id = parseInt(item.dataset.id);
+        const id = parseInt(item.dataset.id, 10);
         const produto = produtos.find((p) => p.id === id);
         if (!produto) return;
-        searchInput.value = produto.nome;
+        if (searchInput) searchInput.value = produto.nome;
         renderizarProdutos([produto], produto.nome);
         dropdown.classList.remove("open");
         document
@@ -779,7 +835,7 @@ function renderizarDropdown(lista, pesquisa) {
     dropdown.querySelectorAll(".dd-add-btn").forEach((btn) => {
       btn.addEventListener("click", (e) => {
         e.stopPropagation();
-        const id = parseInt(btn.dataset.id);
+        const id = parseInt(btn.dataset.id, 10);
         adicionarAoCarrinho(id);
         btn.textContent = "✓ Adicionado";
         btn.style.background = "#25D366";
@@ -793,8 +849,7 @@ function renderizarDropdown(lista, pesquisa) {
     const verMaisEl = dropdown.querySelector(".dd-ver-mais");
     if (verMaisEl) {
       verMaisEl.addEventListener("click", () => {
-        const term = verMaisEl.dataset.pesquisa;
-        renderizarProdutos(lista, term);
+        renderizarProdutos(lista, pesquisa);
         dropdown.classList.remove("open");
         document
           .getElementById("produtos")
@@ -840,7 +895,8 @@ if (searchInput) {
           p.cat.toLowerCase().includes(valor),
       );
       renderizarProdutos(encontrados, valor);
-      document.getElementById("searchDropdown").classList.remove("open");
+      const dd = document.getElementById("searchDropdown");
+      if (dd) dd.classList.remove("open");
       document
         .getElementById("produtos")
         .scrollIntoView({ behavior: "smooth" });
@@ -880,7 +936,7 @@ const observerAnim = new IntersectionObserver(
     entries.forEach((entry) => {
       if (entry.isIntersecting) {
         entry.target.classList.add("show");
-        observerAnim.unobserve(entry.target); // FIX: parar de observar após animar
+        observerAnim.unobserve(entry.target);
       }
     });
   },
@@ -891,7 +947,6 @@ document
   .querySelectorAll(".loja-card")
   .forEach((el) => observerAnim.observe(el));
 
-// FIX: agora chamada dentro de renderizarProdutos()
 function observarProdutos() {
   document
     .querySelectorAll(".produto-card:not(.show)")
@@ -925,7 +980,7 @@ function observarQS() {
 
 function animarContadores() {
   document.querySelectorAll(".qs-stat-num[data-target]").forEach((el) => {
-    const target = parseInt(el.dataset.target);
+    const target = parseInt(el.dataset.target, 10);
     const duracao = 2000;
     const passos = 60;
     const incremento = target / passos;
@@ -998,6 +1053,7 @@ document.addEventListener("click", (e) => {
 
     window.scrollTo({ top: 0, behavior: "smooth" });
     setTimeout(observarQS, 100);
+    return;
   }
 
   const footerProdutosLink = e.target.closest(
@@ -1021,21 +1077,15 @@ document.addEventListener("click", (e) => {
 });
 
 // ================================
-// INICIALIZAR
-// ================================
-
-iniciarSlideshow();
-renderizarProdutos(produtos);
-renderizarCarrinho();
-
-// ================================
 // SWIPE HINT — LOJAS MOBILE
 // ================================
 
-const lojasGrid = document.querySelector(".lojas-grid");
-const swipeHint = document.getElementById("lojasSwipeHint");
+function iniciarSwipeHint() {
+  const lojasGrid = document.querySelector(".lojas-grid");
+  const swipeHint = document.getElementById("lojasSwipeHint");
 
-if (lojasGrid && swipeHint) {
+  if (!lojasGrid || !swipeHint) return;
+
   lojasGrid.addEventListener(
     "scroll",
     function () {
@@ -1065,3 +1115,12 @@ if (lojasGrid && swipeHint) {
     { passive: true },
   );
 }
+
+// ================================
+// INICIALIZAR
+// ================================
+
+iniciarSlideshow();
+renderizarProdutos(produtos);
+renderizarCarrinho();
+iniciarSwipeHint();
