@@ -678,82 +678,129 @@ function renderizarDropdown(lista, pesquisa) {
             <div class="dd-empty">
                 <div class="dd-empty-icon">🔍</div>
                 <p>Nenhum produto encontrado para "<strong>${pesquisa}</strong>"</p>
-                <small>Tente buscar por categoria: Ferramentas, Fixação, Construção, Elétrica, Pintura</small>
             </div>`;
     dropdown.classList.add("open");
     return;
   }
 
+  const isMobile = window.innerWidth < 768;
   const top8 = lista.slice(0, 8);
-  const itens = top8
-    .map(
-      (produto) => `
-        <div class="dd-item" data-id="${produto.id}">
-            <div class="dd-emoji">${produto.emoji}</div>
-            <div class="dd-info">
-                <div class="dd-name">${produto.nome}</div>
-                <div class="dd-cat">${produto.cat}</div>
-            </div>
-            <div class="dd-price">${formatarPreco(produto.preco)}</div>
-            <button class="dd-add-btn" data-id="${produto.id}">+ Orçamento</button>
-        </div>
-    `,
-    )
-    .join("");
 
-  const verMaisHtml =
-    lista.length > 8
-      ? `<div class="dd-ver-mais" data-pesquisa="${pesquisa}">Ver todos os ${lista.length} resultados ↓</div>`
-      : "";
+  if (isMobile) {
+    const itens = top8
+      .map(
+        (produto) => `
+          <div class="dd-item-mob" data-id="${produto.id}">
+              <span class="dd-emoji-mob">${produto.emoji}</span>
+              <span class="dd-name-mob">${produto.nome}</span>
+          </div>
+      `,
+      )
+      .join("");
 
-  dropdown.innerHTML = `
-        <div class="dd-header">🔍 ${lista.length} resultado(s) para "${pesquisa}"</div>
-        ${itens}
-        ${verMaisHtml}
-    `;
+    const verMaisHtml =
+      lista.length > 8
+        ? `<div class="dd-ver-mais-mob" data-pesquisa="${pesquisa}">Ver todos os ${lista.length} resultados ↓</div>`
+        : "";
 
-  // Clique no item (não no botão) — filtra o grid
-  dropdown.querySelectorAll(".dd-item").forEach((item) => {
-    item.addEventListener("click", (e) => {
-      if (e.target.classList.contains("dd-add-btn")) return;
-      const id = parseInt(item.dataset.id);
-      const produto = produtos.find((p) => p.id === id);
-      if (!produto) return;
-      searchInput.value = produto.nome;
-      renderizarProdutos([produto], produto.nome);
-      dropdown.classList.remove("open");
-      document
-        .getElementById("produtos")
-        .scrollIntoView({ behavior: "smooth" });
+    dropdown.innerHTML = `
+          <div class="dd-header-mob">Resultados para "${pesquisa}"</div>
+          ${itens}
+          ${verMaisHtml}
+      `;
+
+    dropdown.querySelectorAll(".dd-item-mob").forEach((item) => {
+      item.addEventListener("click", () => {
+        const id = parseInt(item.dataset.id);
+        const produto = produtos.find((p) => p.id === id);
+        if (!produto) return;
+        searchInput.value = produto.nome;
+        renderizarProdutos([produto], produto.nome);
+        dropdown.classList.remove("open");
+        document
+          .getElementById("produtos")
+          .scrollIntoView({ behavior: "smooth" });
+      });
     });
-  });
 
-  // Botão "+ Orçamento" dentro do dropdown
-  dropdown.querySelectorAll(".dd-add-btn").forEach((btn) => {
-    btn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      const id = parseInt(btn.dataset.id);
-      adicionarAoCarrinho(id);
-      btn.textContent = "✓ Adicionado";
-      btn.style.background = "#25D366";
-      setTimeout(() => {
-        btn.textContent = "+ Orçamento";
-        btn.style.background = "";
-      }, 2000);
-    });
-  });
+    const verMaisEl = dropdown.querySelector(".dd-ver-mais-mob");
+    if (verMaisEl) {
+      verMaisEl.addEventListener("click", () => {
+        const term = verMaisEl.dataset.pesquisa;
+        renderizarProdutos(lista, term);
+        dropdown.classList.remove("open");
+        document
+          .getElementById("produtos")
+          .scrollIntoView({ behavior: "smooth" });
+      });
+    }
+  } else {
+    const itens = top8
+      .map(
+        (produto) => `
+          <div class="dd-item" data-id="${produto.id}">
+              <div class="dd-emoji">${produto.emoji}</div>
+              <div class="dd-info">
+                  <div class="dd-name">${produto.nome}</div>
+                  <div class="dd-cat">${produto.cat}</div>
+              </div>
+              <button class="dd-add-btn" data-id="${produto.id}">+ Orçamento</button>
+          </div>
+      `,
+      )
+      .join("");
 
-  // Ver todos
-  const verMaisEl = dropdown.querySelector(".dd-ver-mais");
-  if (verMaisEl) {
-    verMaisEl.addEventListener("click", () => {
-      const term = verMaisEl.dataset.pesquisa;
-      renderizarProdutos(lista, term);
-      dropdown.classList.remove("open");
-      document
-        .getElementById("produtos")
-        .scrollIntoView({ behavior: "smooth" });
+    const verMaisHtml =
+      lista.length > 8
+        ? `<div class="dd-ver-mais" data-pesquisa="${pesquisa}">Ver todos os ${lista.length} resultados ↓</div>`
+        : "";
+
+    dropdown.innerHTML = `
+          <div class="dd-header">🔍 ${lista.length} resultado(s) para "${pesquisa}"</div>
+          ${itens}
+          ${verMaisHtml}
+      `;
+
+    dropdown.querySelectorAll(".dd-item").forEach((item) => {
+      item.addEventListener("click", (e) => {
+        if (e.target.classList.contains("dd-add-btn")) return;
+        const id = parseInt(item.dataset.id);
+        const produto = produtos.find((p) => p.id === id);
+        if (!produto) return;
+        searchInput.value = produto.nome;
+        renderizarProdutos([produto], produto.nome);
+        dropdown.classList.remove("open");
+        document
+          .getElementById("produtos")
+          .scrollIntoView({ behavior: "smooth" });
+      });
     });
+
+    dropdown.querySelectorAll(".dd-add-btn").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const id = parseInt(btn.dataset.id);
+        adicionarAoCarrinho(id);
+        btn.textContent = "✓ Adicionado";
+        btn.style.background = "#25D366";
+        setTimeout(() => {
+          btn.textContent = "+ Orçamento";
+          btn.style.background = "";
+        }, 2000);
+      });
+    });
+
+    const verMaisEl = dropdown.querySelector(".dd-ver-mais");
+    if (verMaisEl) {
+      verMaisEl.addEventListener("click", () => {
+        const term = verMaisEl.dataset.pesquisa;
+        renderizarProdutos(lista, term);
+        dropdown.classList.remove("open");
+        document
+          .getElementById("produtos")
+          .scrollIntoView({ behavior: "smooth" });
+      });
+    }
   }
 
   dropdown.classList.add("open");
