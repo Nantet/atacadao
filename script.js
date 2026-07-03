@@ -739,61 +739,12 @@ function renderizarDropdown(lista, pesquisa) {
     return;
   }
 
-  const isMobile = window.innerWidth < 768;
   const top8 = lista.slice(0, 8);
   const pesquisaSafe = escapeHtml(pesquisa);
 
-  if (isMobile) {
-    const itens = top8
-      .map(
-        (produto) => `
-          <div class="dd-item-mob" data-id="${produto.id}">
-              <span class="dd-emoji-mob">${produto.emoji}</span>
-              <span class="dd-name-mob">${escapeHtml(produto.nome)}</span>
-          </div>
-      `,
-      )
-      .join("");
-
-    const verMaisHtml =
-      lista.length > 8
-        ? `<div class="dd-ver-mais-mob" data-pesquisa="${pesquisaSafe}">Ver todos os ${lista.length} resultados ↓</div>`
-        : "";
-
-    dropdown.innerHTML = `
-          <div class="dd-header-mob">Resultados para "${pesquisaSafe}"</div>
-          ${itens}
-          ${verMaisHtml}
-      `;
-
-    dropdown.querySelectorAll(".dd-item-mob").forEach((item) => {
-      item.addEventListener("click", () => {
-        const id = parseInt(item.dataset.id, 10);
-        const produto = produtos.find((p) => p.id === id);
-        if (!produto) return;
-        if (searchInput) searchInput.value = produto.nome;
-        renderizarProdutos([produto], produto.nome);
-        dropdown.classList.remove("open");
-        document
-          .getElementById("produtos")
-          .scrollIntoView({ behavior: "smooth" });
-      });
-    });
-
-    const verMaisEl = dropdown.querySelector(".dd-ver-mais-mob");
-    if (verMaisEl) {
-      verMaisEl.addEventListener("click", () => {
-        renderizarProdutos(lista, pesquisa);
-        dropdown.classList.remove("open");
-        document
-          .getElementById("produtos")
-          .scrollIntoView({ behavior: "smooth" });
-      });
-    }
-  } else {
-    const itens = top8
-      .map(
-        (produto) => `
+  const itens = top8
+    .map(
+      (produto) => `
           <div class="dd-item" data-id="${produto.id}">
               <div class="dd-emoji">${produto.emoji}</div>
               <div class="dd-info">
@@ -803,59 +754,58 @@ function renderizarDropdown(lista, pesquisa) {
               <button class="dd-add-btn" data-id="${produto.id}" type="button">+ Orçamento</button>
           </div>
       `,
-      )
-      .join("");
+    )
+    .join("");
 
-    const verMaisHtml =
-      lista.length > 8
-        ? `<div class="dd-ver-mais" data-pesquisa="${pesquisaSafe}">Ver todos os ${lista.length} resultados ↓</div>`
-        : "";
+  const verMaisHtml =
+    lista.length > 8
+      ? `<div class="dd-ver-mais" data-pesquisa="${pesquisaSafe}">Ver todos os ${lista.length} resultados ↓</div>`
+      : "";
 
-    dropdown.innerHTML = `
+  dropdown.innerHTML = `
           <div class="dd-header">🔍 ${lista.length} resultado(s) para "${pesquisaSafe}"</div>
           ${itens}
           ${verMaisHtml}
       `;
 
-    dropdown.querySelectorAll(".dd-item").forEach((item) => {
-      item.addEventListener("click", (e) => {
-        if (e.target.classList.contains("dd-add-btn")) return;
-        const id = parseInt(item.dataset.id, 10);
-        const produto = produtos.find((p) => p.id === id);
-        if (!produto) return;
-        if (searchInput) searchInput.value = produto.nome;
-        renderizarProdutos([produto], produto.nome);
-        dropdown.classList.remove("open");
-        document
-          .getElementById("produtos")
-          .scrollIntoView({ behavior: "smooth" });
-      });
+  dropdown.querySelectorAll(".dd-item").forEach((item) => {
+    item.addEventListener("click", (e) => {
+      if (e.target.classList.contains("dd-add-btn")) return;
+      const id = parseInt(item.dataset.id, 10);
+      const produto = produtos.find((p) => p.id === id);
+      if (!produto) return;
+      if (searchInput) searchInput.value = produto.nome;
+      renderizarProdutos([produto], produto.nome);
+      dropdown.classList.remove("open");
+      document
+        .getElementById("produtos")
+        .scrollIntoView({ behavior: "smooth" });
     });
+  });
 
-    dropdown.querySelectorAll(".dd-add-btn").forEach((btn) => {
-      btn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        const id = parseInt(btn.dataset.id, 10);
-        adicionarAoCarrinho(id);
-        btn.textContent = "✓ Adicionado";
-        btn.style.background = "#25D366";
-        setTimeout(() => {
-          btn.textContent = "+ Orçamento";
-          btn.style.background = "";
-        }, 2000);
-      });
+  dropdown.querySelectorAll(".dd-add-btn").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const id = parseInt(btn.dataset.id, 10);
+      adicionarAoCarrinho(id);
+      btn.textContent = "✓ Adicionado";
+      btn.style.background = "#25D366";
+      setTimeout(() => {
+        btn.textContent = "+ Orçamento";
+        btn.style.background = "";
+      }, 2000);
     });
+  });
 
-    const verMaisEl = dropdown.querySelector(".dd-ver-mais");
-    if (verMaisEl) {
-      verMaisEl.addEventListener("click", () => {
-        renderizarProdutos(lista, pesquisa);
-        dropdown.classList.remove("open");
-        document
-          .getElementById("produtos")
-          .scrollIntoView({ behavior: "smooth" });
-      });
-    }
+  const verMaisEl = dropdown.querySelector(".dd-ver-mais");
+  if (verMaisEl) {
+    verMaisEl.addEventListener("click", () => {
+      renderizarProdutos(lista, pesquisa);
+      dropdown.classList.remove("open");
+      document
+        .getElementById("produtos")
+        .scrollIntoView({ behavior: "smooth" });
+    });
   }
 
   dropdown.classList.add("open");
